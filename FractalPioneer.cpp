@@ -496,6 +496,7 @@ FractalPioneer::FractalPioneer(QWidget* parent)
             if (value == Qt::Checked) {
                 ui.outputUsePreloadedWaypoints->setText("Enabled");
             } else {
+                ui.fractal->clearWayPoints();
                 ui.outputUsePreloadedWaypoints->setText("Disabled");
             }
         });
