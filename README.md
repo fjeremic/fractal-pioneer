@@ -72,6 +72,28 @@ pleasing by smoothing it out via anti-aliasing, adding ambient occlusion, fog, f
 [9]: https://www.iquilezles.org/www/articles/orbittraps3d/orbittraps3d.htm
 [10]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/frag.glsl#L85-L100
 
+### Camera Position And Rotation
+
+The camera position is represented by a [3D vector][11] representing the X, Y, and Z coordinates. The camera rotation
+is represented by [Euler angles][12] which are converted to quaternions for each axis from which we [calculate the
+rotation matrix][14]. Both the position and the rotation matrix [are passed to the fragment shader][15] which then uses
+these values to cast rays from the camera through each pixel and onto the 3D fractal.
+
+When the user clicks on the canvas displaying the fractal we capture the mouse and keyboard and using the defined hotkeys
+we apply linear translations to the position via the keyboard and angular translations to the rotation via the mouse. For
+example holding the `W` key will translate the camera forward in the look direction by using the rotation matrix to
+extract the look direction vector and apply a scaled vector addition to the current position using the look direction.
+For rotations, moving the mouse will result in angular rotation of the Euler angles, which is a simple vector addition.
+Camera position and rotation control is implemented in the [`updatePhysics`][16] function.
+
+
+[11]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L338-L352
+[12]: https://en.wikipedia.org/wiki/Euler_angles
+[13]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L354-L395
+[14]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L354-L395
+[15]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L880-L881
+[16]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L774-L832
+
 ### Interpolating Position
 ### Interpolating Rotation
 ### Keyframe Interpolation At Constant Speed
