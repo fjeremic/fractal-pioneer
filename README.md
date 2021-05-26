@@ -95,5 +95,22 @@ Camera position and rotation control is implemented in the [`updatePhysics`][16]
 [16]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L774-L832
 
 ### Interpolating Position
+
+The application allows the user to record a sequence of waypoints via the [`addWaypoint`][11] function. To animate a
+path through the waypoints we have to interpolate the 3D position of the camera. For this we chose to use a 
+[Catmull-Rom spline][12] which has a very simple representation and has the nice property that it interpolates through 
+the waypoints precisely. The linked whitepaper describes a simple matrix representation to interpolate the spline using
+at least four waypoints. The user can of course record as many points as they wish.
+
+The [`interpolatePosition`][13] function implements interpolation of the user defined waypoints as described in the
+whitepaper by Christopher Twigg. Catmull-Rom splines require two extra waypoints, called the control points, which
+dictate the tangents for the first and the last waypoint. We use the [camera look direction][14] to ensure a smooth
+animation at the start and end of the spline.
+
+[11]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L296-L307
+[12]: http://graphics.cs.cmu.edu/nsp/course/15-462/Fall04/assts/catmullRom.pdf
+[13]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L136-L191
+[14]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L165-L181
+
 ### Interpolating Rotation
 ### Keyframe Interpolation At Constant Speed
