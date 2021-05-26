@@ -223,7 +223,7 @@ QVector3D FractalWidget::interpolateRotation(float t)
             QQuaternion::fromAxisAndAngle({1.0f, 0.0f, 0.0f}, rotationWaypoints[i - 1].x() / (M_PI / 180.0f)) *
             QQuaternion::fromAxisAndAngle({0.0f, 0.0f, 1.0f}, rotationWaypoints[i - 1].z() / (M_PI / 180.0f));
 
-        // Section 6.2.1, Definition 17, (6.15) pg. 51 of [1]
+        // Section 6.2.1, Definition 17, (6.15) pg. 51 of https://web.mit.edu/2.998/www/QuaternionReport1.pdf
         si0 = qi0 * exp(-(log(qi0.inverted() * qi1) + log(qi0.inverted() * qim1)) / 4);
     }
 
@@ -240,13 +240,13 @@ QVector3D FractalWidget::interpolateRotation(float t)
             QQuaternion::fromAxisAndAngle({1.0f, 0.0f, 0.0f}, rotationWaypoints[i + 2].x() / (M_PI / 180.0f)) *
             QQuaternion::fromAxisAndAngle({0.0f, 0.0f, 1.0f}, rotationWaypoints[i + 2].z() / (M_PI / 180.0f));
 
-        // Section 6.2.1, Definition 17, (6.15) pg. 51 of [1]
+        // Section 6.2.1, Definition 17, (6.15) pg. 51 of https://web.mit.edu/2.998/www/QuaternionReport1.pdf
         si1 = qi1 * exp(-(log(qi1.inverted() * qip2) + log(qi1.inverted() * qi0)) / 4);
     }
 
     auto h = t - i;
 
-    // Section 6.2.1, Definition 17, (6.14) pg. 51 of [1]
+    // Section 6.2.1, Definition 17, (6.14) pg. 51 of https://web.mit.edu/2.998/www/QuaternionReport1.pdf
     auto squad = QQuaternion::slerp(QQuaternion::slerp(qi0, qi1, h), QQuaternion::slerp(si0, si1, h), 2 * h * (1 - h));
 
     return squad.toEulerAngles() * static_cast<float>(M_PI / 180.0f);

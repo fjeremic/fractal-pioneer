@@ -96,21 +96,61 @@ Camera position and rotation control is implemented in the [`updatePhysics`][16]
 
 ### Interpolating Position
 
-The application allows the user to record a sequence of waypoints via the [`addWaypoint`][11] function. To animate a
+The application allows the user to record a sequence of waypoints via the [`addWaypoint`][17] function. To animate a
 path through the waypoints we have to interpolate the 3D position of the camera. For this we chose to use a 
-[Catmull-Rom spline][12] which has a very simple representation and has the nice property that it interpolates through 
+[Catmull-Rom spline][18] which has a very simple representation and has the nice property that it interpolates through 
 the waypoints precisely. The linked whitepaper describes a simple matrix representation to interpolate the spline using
 at least four waypoints. The user can of course record as many points as they wish.
 
-The [`interpolatePosition`][13] function implements interpolation of the user defined waypoints as described in the
+The [`interpolatePosition`][19] function implements interpolation of the user defined waypoints as described in the
 whitepaper by Christopher Twigg. Catmull-Rom splines require two extra waypoints, called the control points, which
-dictate the tangents for the first and the last waypoint. We use the [camera look direction][14] to ensure a smooth
+dictate the tangents for the first and the last waypoint. We use the [camera look direction][20] to ensure a smooth
 animation at the start and end of the spline.
 
-[11]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L296-L307
-[12]: http://graphics.cs.cmu.edu/nsp/course/15-462/Fall04/assts/catmullRom.pdf
-[13]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L136-L191
-[14]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L165-L181
+[17]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L296-L307
+[18]: http://graphics.cs.cmu.edu/nsp/course/15-462/Fall04/assts/catmullRom.pdf
+[19]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L136-L191
+[20]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L165-L181
 
 ### Interpolating Rotation
+
+For each recorded waypoint we also record the rotation at that waypoint which we will use to interpolate the rotation
+of the camera as the position is being interpolated. Unlike the position however, we cannot simply use a spline to
+interpolate the rotation. Attempting to do so will result in "jerky" camera movement. The reason for this is because
+3D rotations form a [non-ablian group][21] which can be projected onto a four-dimensional unit sphere of quaternions.
+Attempting to apply a vector-space interpolation function such as linear interpolation on rotational waypoints will
+result in camera movement which has non-constant angular momentum. If we project a linear interpolation onto a unit
+spehere of quaternions, it will be a line between two points on a sphere. The line will cross through the the sphere
+which is not what we want. This results in the camera rotating slower at the start and end, and fast during the middle
+of the animation. The mathematics behind this is explained in detail in an excellent whitepaper [_Quaternions,
+Interpolation and Animation_][22] by Erik B. Dam et. al.
+
+In section 6.2.1. of the whitepaper an interpolation method called _Spherical Spline Quaternion interpolation_ (Squad)
+of unit quaternions is explored which does a fairly good job at preserving angular momentum while interpolating
+rotations. As explained in the whitepaper, the Squad algorithm interpolates unit quaternions through a series of
+waypoints, similar to that of the spline interpolation described in the previous section. Equation 6.14 on pg. 51
+defines the interpolation function which is remarkably simple:
+
+<p align="center">
+  <br>
+  <img src="https://render.githubusercontent.com/render/math?math=%5CLarge%20Squad(q_i,q_{i%2B1},s_i,s_{i%2B1},h) = Slerp(Slerp(q_i, q_{i%2B1}, h), Slerp(s_i, s_{i%2B1}, h), 2h(1 - h))">
+  <br>
+  <br>
+  <img src="https://render.githubusercontent.com/render/math?math=%5CLarge%20s_i = q_i exp(-\frac{log(q_i^{-1}q_{i%2B1})%2Blog(q_i^{-1}q_{i-1})}{4})">
+  <br>
+</p>
+
+Qt does not implement the logarithm and exponential functions for quaternions, so we roll out our own [`log`][23] and
+[`exp`][24] functions as defined by [Wikipedia][25]. Thankfully the `slerp` function is implemeted by the Qt
+`QQuaternion` class which makes our implementation simple. With that we have all the tools to implmenent rotational
+interpolation using the Squad definitions above. This is impleemnted in [`interpolateRotation`][26] function by 
+converting our recorded Euler angle rotational waypoints into unit quaternions and applying the Squad function.
+
+[21]: https://en.wikipedia.org/wiki/3D_rotation_group
+[22]: https://web.mit.edu/2.998/www/QuaternionReport1.pdf
+[23]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L38-L65
+[24]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L12-L36
+[25]: https://en.wikipedia.org/wiki/Quaternion#Exponential,_logarithm,_and_power_functions
+[26]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L193-L253
+
 ### Keyframe Interpolation At Constant Speed
