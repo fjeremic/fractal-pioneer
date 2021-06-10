@@ -154,3 +154,5 @@ converting our recorded Euler angle rotational waypoints into unit quaternions a
 [26]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L193-L253
 
 ### Keyframe Interpolation At Constant Speed
+
+To be written.
