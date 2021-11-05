@@ -11,7 +11,7 @@
 
 ## Introduction
 
-Fractal Pioneer is a Qt based application for exploring 3D fractals and generating high-FPS high-resultion keyframes
+Fractal Pioneer is a Qt based application for exploring 3D fractals and generating high-FPS high-resolution keyframes
 from a user defined set of waypoints using a constant speed interpolated camera system. The application was used to
 generate the above linked YouTube video using a preloaded set of waypoints which are included with the application.
  
@@ -51,7 +51,7 @@ the fragment shader processes is a simple square covering the canvas where the 3
 drawn on an OpenGL Vertex Buffer Object in the [`resizeGL`][2] function. For each pixel on the fragment (our square) the
 fragment shader casts a ray from the camera through the pixel to [calculate the colour][3] for this pixel.
 
-We use the [ray marching method][4] and a [distance estimate forumla][5] for our fractal to calculate the maximum 
+We use the [ray marching method][4] and a [distance estimate formula][5] for our fractal to calculate the maximum 
 distance we can ray march without intersecting the 3D fractal boundary. This process is [iterated][6] until we either
 reach some defined minimum distance to the fractal or our ray has completely missed the fractal. Depending on the
 distance returned by the distance estimator we decide whether to colour the pixel using the [background colour][7] or
@@ -120,7 +120,7 @@ interpolate the rotation. Attempting to do so will result in "jerky" camera move
 3D rotations form a [non-ablian group][21] which can be projected onto a four-dimensional unit sphere of quaternions.
 Attempting to apply a vector-space interpolation function such as linear interpolation on rotational waypoints will
 result in camera movement which has non-constant angular momentum. If we project a linear interpolation onto a unit
-spehere of quaternions, it will be a line between two points on a sphere. The line will cross through the the sphere
+sphere of quaternions, it will be a line between two points on a sphere. The line will cross through the the sphere
 which is not what we want. This results in the camera rotating slower at the start and end, and fast during the middle
 of the animation. The mathematics behind this is explained in detail in an excellent whitepaper [_Quaternions,
 Interpolation and Animation_][22] by Erik B. Dam et. al.
@@ -141,9 +141,9 @@ defines the interpolation function which is remarkably simple:
 </p>
 
 Qt does not implement the logarithm and exponential functions for quaternions, so we roll out our own [`log`][23] and
-[`exp`][24] functions as defined by [Wikipedia][25]. Thankfully the `slerp` function is implemeted by the Qt
-`QQuaternion` class which makes our implementation simple. With that we have all the tools to implmenent rotational
-interpolation using the Squad definitions above. This is impleemnted in [`interpolateRotation`][26] function by 
+[`exp`][24] functions as defined by [Wikipedia][25]. Thankfully the `slerp` function is implemented by the Qt
+`QQuaternion` class which makes our implementation simple. With that we have all the tools to implement rotational
+interpolation using the Squad definitions above. This is implemented in [`interpolateRotation`][26] function by 
 converting our recorded Euler angle rotational waypoints into unit quaternions and applying the Squad function.
 
 [21]: https://en.wikipedia.org/wiki/3D_rotation_group
@@ -155,4 +155,98 @@ converting our recorded Euler angle rotational waypoints into unit quaternions a
 
 ### Keyframe Interpolation At Constant Speed
 
-To be written.
+For simplicity let's consider a user recording waypoints in 2D space, and we wish for our camera to interpolate through
+the user recorded waypoints at a constant velocity. Using a target FPS and a target duration we want the interpolation to
+last, we can calculate the velocity at which we want the camera to travel.
+
+Consider the following spline with three user recorded waypoints: `p0`, `p1`, and `p2`:
+
+<br/>
+<p align="center">
+  <img align="center" src="https://raw.githubusercontent.com/fjeremic/fractal-pioneer/assets/Spline.png"/>
+</p>
+<br/>
+
+This spline, much like the user recorded waypoints, is defined by a discrete set of points. An obvious first thought to
+animate the camera may be to interpolate the camera position between pairs of waypoints, `[p0, p1]`, `[p1, p2]`, etc.
+Attempting to do this will work functionally, but will not yield a visually pleasing result because the camera velocity
+will not be constant throughout the animation. The distance between points `p0` and `p1` is smaller than the distance
+between points `p1` and `p2`. Approximately twice as small. This means that the camera will travel twice as fast
+between the first pair of points, with an abrupt slowdown for the second pair of points.
+
+The problem at hand is that given a sequence of waypoints which define a continuously differentiable spline, how do we
+interpolate through the spine at a constant velocity?
+
+We know our target FPS and we know the duration we want to take to interpolate the camera through the entirety of the
+spline. If we knew the arc length of the spline, we could calculate how far along the spline we need to travel for each
+timestep so that our camera velocity would be constant. According to Wikipedia, given a function `f(t)` the [arc length][27]
+of `f` denoted as `L(f)` is defined as:
+
+<p align="center">
+  <br>
+  <img src="https://render.githubusercontent.com/render/math?math=%5CLarge%20L(f) = \int_{a}^{b} \lvert f'(t) \rvert dt">
+  <br>
+</p>
+
+If `f` represents our interpolation function defined in the previous sections, then to calculate the arc length we need
+to be able to numerically differentiate our interpolation function, and then numerically calculate the integral of length
+of the derivative between some range.
+
+#### Calculating the derivative
+
+Thankfully, due to the simplicity of the definition of Catmull-Rom splines as defined in Christopher Twigg's [whitepaper][18],
+taking the derivative of `p(u)` with respect to `u` is as easy as differentiating each of the terms in the initial vector of
+`[1 u u^2 u^3]` which yields `[0 1 2u 3u^2]`. This is implemented via a [`takeDerivative`][28] parameter in the 
+`interpolatePosition` function.
+
+#### Calculating the integral
+
+Unfortunately, finding an analytical solution for the integral will not be possible in our case. We must resort to numerical
+approximations of the integral, which for all intents and purposes will serve us just as well. The canonical numerical
+integration method I learned through school was using [Gaussian quadrature][29]. The Wikipedia article defines the integral
+equation for us:
+
+<p align="center">
+  <br>
+  <img src="https://render.githubusercontent.com/render/math?math=%5CLarge%20\int _{a}^{b}f(x)\,dx\approx {\frac {b-a}{2}}\sum _{i=1}^{n}w_{i}f\left({\frac {b-a}{2}}\xi _{i}+{\frac {a+b}{2}}\right)">
+  <br>
+</p>
+
+using `n`-point Gaussian quadrature. In our case we'll be using the 5-point version since Wikipedia also defines the points
+and the weights for us as well. The integration function is implemented as a lambda within [`blend`][30].
+
+#### Putting it all together
+
+We are now able to differentiate our position function `f` and we know how to take an integral of it as well. We can put
+all of this together to calculate the arc length of our spline using the equation above. However we'll go one step further.
+Recall that our goal is to know how far along the spline we want to move the camera for a given time delta such that the
+camera appears to move at a constant velocity.
+
+Our position interpolation function `interpolatePosition` takes as input an interpolation parameter `u` which ranges
+between `[0, n - 1]` where `n` is the number of waypoints. We know how to calculate the arc length, and so we know the
+distance we want to travel along the spline, but what we don't know is what interpolation parameter will get us to that
+distance.
+
+An easy way to solve this problem is to precalculate a table, mapping distances along the spline to interpolation
+parameters. We subdivide our spline into small segments by evaluating `f(u)` and `f(u + 0.01)`. The `0.01` constant was
+chosen as a reasonable value to yield good results. We then apply Gaussian quadrature between this interval to find the
+length of this spline segment, we'll call that `s`. We then store the current accumulated arc length corresponding to
+the current value of `u` in a table. We continue until we reach the end of the spline.
+
+The last value in the spline will correspond to a reasonably accurate arc length of the entire spline. The table just
+described which we call `s2uTable` is calculated once per animation in the [`blend`][31] function. Moreover we now posses
+a way to determine what value of `u` we need to pass to `f(u)` such that we travel a certain distance. This is implemented
+in the [`s2u`][32] function as a simple binary search.
+
+Finally when the user triggers an animation we use the target FPS to calculate a time delta, we use the target output
+duration to calculate the arc length per millisecond that we want to travel, and we use our `s2u` function to find the
+interpolation parameter which will make the camera go the desired distance. All of this is implemented in a few lines
+within the [`updatePhysics`][33] function.
+
+[27]: https://en.wikipedia.org/wiki/Arc_length
+[28]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L153-L158
+[29]: https://en.wikipedia.org/wiki/Gaussian_quadrature
+[30]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L78-L99
+[31]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L101-L111
+[32]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L114-L134
+[33]: https://github.com/fjeremic/fractal-pioneer/blob/acd2c19199ae9cd768d766295f6193c5cff2ea9b/FractalWidget.cpp#L834-L846
