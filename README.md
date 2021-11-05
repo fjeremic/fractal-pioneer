@@ -42,6 +42,18 @@ custom waypoints uncheck the `Use Preloaded Waypoints` checkbox on the right and
 | `Delete`    | Clear waypoints                                       |
 | `Escape`    | Stop animation/preview or stop mouse/keyboard capture |
 
+## Keyframes To Video
+
+The tool outputs a sequence of keyframes as PNG images in the desired resolution named in a sequential order. To create
+a video we can use the the ffmpeg tool to stitch it all together. For example:
+
+```
+ffmpeg -framerate 60 -i %03d.png fractal.mp4
+```
+
+The YouTube video seen above was made using the preloaded waypoints included with the application. The output video was
+then edited in Premiere Pro to produce the final version seen on YouTube.
+
 ## Technical Details
 
 ### Drawing The Fractal
