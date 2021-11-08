@@ -245,7 +245,7 @@ chosen as a reasonable value to yield good results. We then apply Gaussian quadr
 length of this spline segment, we'll call that `s`. We then store the current accumulated arc length corresponding to
 the current value of `u` in a table. We continue until we reach the end of the spline.
 
-The last value in the spline will correspond to a reasonably accurate arc length of the entire spline. The table just
+The last value in the table will correspond to a reasonably accurate arc length of the entire spline. The table just
 described which we call `s2uTable` is calculated once per animation in the [`blend`][31] function. Moreover we now posses
 a way to determine what value of `u` we need to pass to `f(u)` such that we travel a certain distance. This is implemented
 in the [`s2u`][32] function as a simple binary search.
