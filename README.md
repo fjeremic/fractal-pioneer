@@ -220,7 +220,7 @@ equation for us:
 
 <p align="center">
   <br>
-  <img src="https://render.githubusercontent.com/render/math?math=%5CLarge%20\int _{a}^{b}f(x)\,dx\approx {\frac {b-a}{2}}\sum _{i=1}^{n}w_{i}f\left({\frac {b-a}{2}}\xi _{i}+{\frac {a+b}{2}}\right)">
+  <img src="https://render.githubusercontent.com/render/math?math=%5CLarge%20\int _{a}^{b}f(x)\,dx\approx {\frac {b-a}{2}}\sum _{i=1}^{n}w_{i}f\left({\frac {b-a}{2}}\xi _{i}%2B{\frac {a%2Bb}{2}}\right)">
   <br>
 </p>
 
