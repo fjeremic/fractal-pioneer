@@ -143,14 +143,14 @@ rotations. As explained in the whitepaper, the Squad algorithm interpolates unit
 waypoints, similar to that of the spline interpolation described in the previous section. Equation 6.14 on pg. 51
 defines the interpolation function which is remarkably simple:
 
-<p align="center">
-  <br>
-  <img src="https://render.githubusercontent.com/render/math?math=%5CLarge%20Squad(q_i,q_{i%2B1},s_i,s_{i%2B1},h) = Slerp(Slerp(q_i, q_{i%2B1}, h), Slerp(s_i, s_{i%2B1}, h), 2h(1 - h))">
-  <br>
-  <br>
-  <img src="https://render.githubusercontent.com/render/math?math=%5CLarge%20s_i = q_i exp(-\frac{log(q_i^{-1}q_{i%2B1})%2Blog(q_i^{-1}q_{i-1})}{4})">
-  <br>
-</p>
+$$
+\begin{align}
+  \\
+  \text{Squad}(q_i,\ q_{i+1},\ s_i,\ s_{i+1},\ h)\ &=\ \text{Slerp}(\text{Slerp}(q_i,\ q_{i+1},\ h),\ \text{Slerp}(s_i,\ s_{i+1},\ h),\ 2h(1 - h)) \\
+  \\
+  s_i\ &=\ q_i \exp\left(-\frac{\log(q_i^{-1}q_{i+1}) + \log(q_i^{-1}q_{i-1})}{4}\right)
+\end{align}
+$$
 
 Qt does not implement the logarithm and exponential functions for quaternions, so we roll out our own [`log`][23] and
 [`exp`][24] functions as defined by [Wikipedia][25]. Thankfully the `slerp` function is implemented by the Qt
@@ -171,7 +171,7 @@ For simplicity let's consider a user recording waypoints in 2D space, and we wis
 the user recorded waypoints at a constant velocity. Using a target FPS and a target duration we want the interpolation to
 last, we can calculate the velocity at which we want the camera to travel.
 
-Consider the following spline with three user recorded waypoints: `p0`, `p1`, and `p2`:
+Consider the following spline with three user recorded waypoints: $p_0$, $p_1$, and $p_2$:
 
 <br/>
 <p align="center">
@@ -180,10 +180,10 @@ Consider the following spline with three user recorded waypoints: `p0`, `p1`, an
 <br/>
 
 This spline, much like the user recorded waypoints, is defined by a discrete set of points. An obvious first thought to
-animate the camera may be to interpolate the camera position between pairs of waypoints, `[p0, p1]`, `[p1, p2]`, etc.
+animate the camera may be to interpolate the camera position between pairs of waypoints, $[p_0,\ p_1]$, $[p_1,\ p_2]$, etc.
 Attempting to do this will work functionally, but will not yield a visually pleasing result because the camera velocity
-will not be constant throughout the animation. The distance between points `p0` and `p1` is smaller than the distance
-between points `p1` and `p2`. Approximately twice as small. This means that the camera will travel twice as fast
+will not be constant throughout the animation. The distance between points $p_0$ and $p_1$ is smaller than the distance
+between points $p_1$ and $p_2$. Approximately twice as small. This means that the camera will travel twice as fast
 between the first pair of points, with an abrupt slowdown for the second pair of points.
 
 The problem at hand is that given a sequence of waypoints which define a continuously differentiable spline, how do we
@@ -191,24 +191,22 @@ interpolate through the spine at a constant velocity?
 
 We know our target FPS and we know the duration we want to take to interpolate the camera through the entirety of the
 spline. If we knew the arc length of the spline, we could calculate how far along the spline we need to travel for each
-timestep so that our camera velocity would be constant. According to Wikipedia, given a function `f(t)` the [arc length][27]
-of `f` denoted as `L(f)` is defined as:
+timestep so that our camera velocity would be constant. According to Wikipedia, given a function $f(t)$ the [arc length][27]
+of $f$ denoted as $L(f)$ is defined as:
 
-<p align="center">
-  <br>
-  <img src="https://render.githubusercontent.com/render/math?math=%5CLarge%20L(f) = \int_{a}^{b} \lvert f'(t) \rvert dt">
-  <br>
-</p>
+$$
+L(f)\ =\ \int _{a}^{b}{\Big |}f'(t){\Big |}\ dt
+$$
 
-If `f` represents our interpolation function defined in the previous sections, then to calculate the arc length we need
+If $f$ represents our interpolation function defined in the previous sections, then to calculate the arc length we need
 to be able to numerically differentiate our interpolation function, and then numerically calculate the integral of length
 of the derivative between some range.
 
 #### Calculating the derivative
 
 Thankfully, due to the simplicity of the definition of Catmull-Rom splines as defined in Christopher Twigg's [whitepaper][18],
-taking the derivative of `p(u)` with respect to `u` is as easy as differentiating each of the terms in the initial vector of
-`[1 u u^2 u^3]` which yields `[0 1 2u 3u^2]`. This is implemented via a [`takeDerivative`][28] parameter in the 
+taking the derivative of $p(u)$ with respect to $u$ is as easy as differentiating each of the terms in the initial vector of
+$[1,\ u,\ u^2,\ u^3]$ which yields $[0,\ 1,\ 2u,\ 3u^2]$. This is implemented via a [`takeDerivative`][28] parameter in the 
 `interpolatePosition` function.
 
 #### Calculating the integral
@@ -218,36 +216,34 @@ approximations of the integral, which for all intents and purposes will serve us
 integration method I learned through school was using [Gaussian quadrature][29]. The Wikipedia article defines the integral
 equation for us:
 
-<p align="center">
-  <br>
-  <img src="https://render.githubusercontent.com/render/math?math=%5CLarge%20\int _{a}^{b}f(x)\,dx\approx {\frac {b-a}{2}}\sum _{i=1}^{n}w_{i}f\left({\frac {b-a}{2}}\xi _{i}%2B{\frac {a%2Bb}{2}}\right)">
-  <br>
-</p>
+$$
+\int _{a}^{b}f(x)\ dx\ \approx\ \frac{b - a}{2}\ \sum _{i=1}^n w_i f\left(\frac{b - a}{2}\xi _{i}\ +\ \frac{a + b}{2}\right)
+$$
 
-using `n`-point Gaussian quadrature. In our case we'll be using the 5-point version since Wikipedia also defines the points
+using $n$-point Gaussian quadrature. In our case we'll be using the 5-point version since Wikipedia also defines the points
 and the weights for us as well. The integration function is implemented as a lambda within [`blend`][30].
 
 #### Putting it all together
 
-We are now able to differentiate our position function `f` and we know how to take an integral of it as well. We can put
+We are now able to differentiate our position function $f$ and we know how to take an integral of it as well. We can put
 all of this together to calculate the arc length of our spline using the equation above. However we'll go one step further.
 Recall that our goal is to know how far along the spline we want to move the camera for a given time delta such that the
 camera appears to move at a constant velocity.
 
-Our position interpolation function `interpolatePosition` takes as input an interpolation parameter `u` which ranges
-between `[0, n - 1]` where `n` is the number of waypoints. We know how to calculate the arc length, and so we know the
+Our position interpolation function `interpolatePosition` takes as input an interpolation parameter $u$ which ranges
+between $[0,\ n - 1]$ where $n$ is the number of waypoints. We know how to calculate the arc length, and so we know the
 distance we want to travel along the spline, but what we don't know is what interpolation parameter will get us to that
 distance.
 
 An easy way to solve this problem is to precalculate a table, mapping distances along the spline to interpolation
-parameters. We subdivide our spline into small segments by evaluating `f(u)` and `f(u + 0.01)`. The `0.01` constant was
+parameters. We subdivide our spline into small segments by evaluating $f(u)$ and $f(u + 0.01)$. The $0.01$ constant was
 chosen as a reasonable value to yield good results. We then apply Gaussian quadrature between this interval to find the
-length of this spline segment, we'll call that `s`. We then store the current accumulated arc length corresponding to
-the current value of `u` in a table. We continue until we reach the end of the spline.
+length of this spline segment, we'll call that $s$. We then store the current accumulated arc length corresponding to
+the current value of $u$ in a table. We continue until we reach the end of the spline.
 
 The last value in the table will correspond to a reasonably accurate arc length of the entire spline. The table just
 described which we call `s2uTable` is calculated once per animation in the [`blend`][31] function. Moreover we now posses
-a way to determine what value of `u` we need to pass to `f(u)` such that we travel a certain distance. This is implemented
+a way to determine what value of $u$ we need to pass to $f(u)$ such that we travel a certain distance. This is implemented
 in the [`s2u`][32] function as a simple binary search.
 
 Finally when the user triggers an animation we use the target FPS to calculate a time delta, we use the target output
